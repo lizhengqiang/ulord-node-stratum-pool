@@ -9,9 +9,8 @@ RUN apt-get update \
         wget \
         git \
     && rm -rf /var/lib/apt/lists/*
-RUN npm install n -g \ 
-    && n 4.8.7
-    
+RUN wget -O- https://raw.githubusercontent.com/aliyun-node/tnvm/master/install.sh | bash
+RUN tnvm install alinode-v1.9.7
 ADD . /ulord-node-stratum-pool
 WORKDIR /ulord-node-stratum-pool
 RUN npm update
