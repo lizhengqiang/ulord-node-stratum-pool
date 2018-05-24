@@ -10,7 +10,9 @@ RUN apt-get update \
         git \
     && rm -rf /var/lib/apt/lists/*
 RUN wget -O- https://raw.githubusercontent.com/aliyun-node/tnvm/master/install.sh | bash
-RUN tnvm install alinode-v1.9.7
+RUN RUN source $HOME/.bashrc \ 
+    && tnvm install “alinode-v1.9.7”
+    && tnvm use "alinode-v1.9.7" \
 ADD . /ulord-node-stratum-pool
 WORKDIR /ulord-node-stratum-pool
 RUN npm update
