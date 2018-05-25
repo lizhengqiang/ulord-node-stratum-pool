@@ -267,13 +267,14 @@ var spawnPoolWorkers = function () {
                         var now = Date.now();
                         var lastStartTime = now;
                         var workerAddress = msg.data.worker.split('.')[0];
-                        connection.hget(msg.coin + ':lastTime:current', workerAddress, function (err, rs) {
+                        connection.hget(msg.coin + ':CurrentLastTime', workerAddress, function (err, rs) {
                             if (err)
                                 logger.error('PPLNT', msg.coin, 'Thread ' + msg.thread, 'Error with time share processor call to redis ' + JSON.stringify(err));
 
                             var nxLastShareTime = rs;
 
-                            connection.hsetnx(msg.coin + ':LockPPLNT:current', workerAddress + '.' + nxLastShareTime, 0, function (err, rs) {
+                            // Hold a 900s lock to prevent reADD shares time period
+                            connection.hsetnx(msg.coin + ':CurrentLockPPLNT', workerAddress + '.' + nxLastShareTime, 0, 900, function (err, rs) {
                                 if (err) {
                                     logger.debug('PPLNT', msg.coin, 'Thread ' + msg.thread, 'Error with time share processor call to redis ' + JSON.stringify(err));
                                     return
@@ -282,7 +283,7 @@ var spawnPoolWorkers = function () {
                                     logger.debug('PPLNT', msg.coin, 'Thread ' + msg.thread, workerAddress, 'Conflict!', nxLastShareTime);
                                     return
                                 }
-                                connection.hset(msg.coin + ':lastTime:current', workerAddress, now)
+                                connection.hset(msg.coin + ':CurrentLastTime', workerAddress, now)
                                 pileUp += 1;
 
                                 // if needed, initialize PPLNT objects for coin
@@ -301,22 +302,22 @@ var spawnPoolWorkers = function () {
                                 if (timeChangeSec < 900) {
 
                                     // loyal miner keeps mining :)
-                                    redisCommands.push(['hincrbyfloat', msg.coin + ':shares:timesCurrent', workerAddress, timeChangeSec]);
-
+                                    //redisCommands.push(['hincrbyfloat', msg.coin + ':shares:timesCurrent', workerAddress, timeChangeSec]);
+                                    connection.hincrbyfloat(msg.coin + ':shares:timesCurrent', workerAddress, timeChangeSec)
                                     //logger.debug('PPLNT', msg.coin, 'Thread '+msg.thread, workerAddress+':{totalTimeSec:'+timeChangeTotal+', timeChangeSec:'+timeChangeSec+'}');
 
-                                    if (Date.now() - lastShareSubmitTime >= 1000) {
-                                        lastShareSubmitTime = Date.now();
-                                        var operationExecutionStart = Date.now();
-                                        var executedOperations = redisCommands.length;
-                                        pileUp -= executedOperations;
-                                        connection.multi(redisCommands).exec(function (err, replies) {
-                                            console.log("Execution time: " + (Date.now() - operationExecutionStart).toString() + " PileUp: " + pileUp.toString() + " Executed operations: " + executedOperations.toString());
-                                            if (err)
-                                                logger.error('PPLNT', msg.coin, 'Thread ' + msg.thread, 'Error with time share processor call to redis ' + JSON.stringify(err));
-                                        });
-                                        redisCommands = [];
-                                    }
+                                    // if (Date.now() - lastShareSubmitTime >= 1000) {
+                                    //     lastShareSubmitTime = Date.now();
+                                    //     var operationExecutionStart = Date.now();
+                                    //     var executedOperations = redisCommands.length;
+                                    //     pileUp -= executedOperations;
+                                    //     connection.multi(redisCommands).exec(function (err, replies) {
+                                    //         console.log("Execution time: " + (Date.now() - operationExecutionStart).toString() + " PileUp: " + pileUp.toString() + " Executed operations: " + executedOperations.toString());
+                                    //         if (err)
+                                    //             logger.error('PPLNT', msg.coin, 'Thread ' + msg.thread, 'Error with time share processor call to redis ' + JSON.stringify(err));
+                                    //     });
+                                    //     redisCommands = [];
+                                    // }
                                 } else {
                                     // they just re-joined the pool
                                     _lastStartTimes[workerAddress] = now;
