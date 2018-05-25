@@ -6,7 +6,7 @@ var cluster = require('cluster');
 var async = require('async');
 var extend = require('extend');
 
-var redis = require('redis');
+var redis = require('./libs/predis.js');
 
 var PoolLogger = require('./libs/logUtil.js');
 var CliListener = require('./libs/cliListener.js');

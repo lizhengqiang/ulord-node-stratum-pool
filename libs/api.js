@@ -1,4 +1,4 @@
-var redis = require('redis');
+var redis = require('./predis.js');
 var async = require('async');
 var fs = require('fs');
 var md5 = require('md5')

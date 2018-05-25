@@ -1,4 +1,4 @@
-var redis = require('redis');
+var redis = require('./predis.js');
 var Stratum = require('stratum-pool');
 
 

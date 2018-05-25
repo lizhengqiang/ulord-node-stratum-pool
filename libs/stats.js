@@ -1,6 +1,6 @@
 var zlib = require('zlib');
 
-var redis = require('redis');
+var redis = require('./predis.js');
 var async = require('async');
 var events = require('events');
 var os = require('os');

@@ -1,5 +1,5 @@
 var Stratum = require('stratum-pool');
-var redis   = require('redis');
+var redis   = require('./predis.js');
 var net     = require('net');
 
 var MposCompatibility = require('./mposCompatibility.js');
