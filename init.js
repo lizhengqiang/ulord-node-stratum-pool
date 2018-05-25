@@ -194,6 +194,8 @@ var spawnPoolWorkers = function () {
 
     var redisConfig;
     var connection;
+    var nxRedisConfig;
+    var nxConnection;
 
     Object.keys(poolConfigs).forEach(function (coin) {
         var pcfg = poolConfigs[coin];
@@ -209,6 +211,15 @@ var spawnPoolWorkers = function () {
             connection.on('ready', function () {
                 logger.debug('PPLNT', coin, 'TimeShare processing setup with redis (' + redisConfig.host +
                     ':' + redisConfig.port + ')');
+            });
+            nxRedisConfig = pcfg.nxRedis;
+            nxConnection = redis.createClient(nxRedisConfig.port, nxRedisConfig.host);
+            if (nxRedisConfig.password) {
+                nxConnection.auth(nxRedisConfig.password);
+            }
+            nxConnection.on('ready', function () {
+                logger.debug('PPLNT', coin, 'TimeShare processing setup with lock redis (' + nxRedisConfig.host +
+                    ':' + nxRedisConfig.port + ')');
             });
         }
     });
@@ -267,14 +278,14 @@ var spawnPoolWorkers = function () {
                         var now = Date.now();
                         var lastStartTime = now;
                         var workerAddress = msg.data.worker.split('.')[0];
-                        connection.hget(msg.coin + ':PPLNT:LastTime', workerAddress, function (err, rs) {
+                        nxConnection.hget(msg.coin + ':PPLNT:LastTime', workerAddress, function (err, rs) {
                             if (err)
                                 logger.error('PPLNT', msg.coin, 'Thread ' + msg.thread, 'Error with time share processor call to redis ' + JSON.stringify(err));
 
                             var nxLastShareTime = rs || 0;
 
                             // Hold a 900s lock to prevent reADD shares time period
-                            connection.hsetnx(msg.coin + ':PPLNT:Lock', workerAddress + '.' + nxLastShareTime, 0, 900, function (err, rs) {
+                            nxConnection.setnx(msg.coin + ':PPLNT:Lock:' + workerAddress + '.' + nxLastShareTime, 0, 900, function (err, rs) {
                                 if (err) {
                                     logger.debug('PPLNT', msg.coin, 'Thread ' + msg.thread, 'Error with time share processor call to redis ' + JSON.stringify(err));
                                     return
@@ -283,7 +294,7 @@ var spawnPoolWorkers = function () {
                                     logger.debug('PPLNT', msg.coin, 'Thread ' + msg.thread, workerAddress, 'Conflict!', nxLastShareTime);
                                     return
                                 }
-                                connection.hset(msg.coin + ':PPLNT:LastTime', workerAddress, now)
+                                nxConnection.hset(msg.coin + ':PPLNT:LastTime', workerAddress, now)
                                 pileUp += 1;
 
                                 // if needed, initialize PPLNT objects for coin
