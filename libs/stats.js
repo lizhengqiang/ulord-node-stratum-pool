@@ -256,7 +256,7 @@ var STATS = module.exports = function(logger, portalConfig, poolConfigs){
 		async.each(_this.stats.pools, function(pool, pcb) {
             pindex++;
 			var coin = String(_this.stats.pools[pool.name].name);
-			client.hscan(coin + ':shares:roundCurrent', 0, "match", a+"*", "count", 1000, function(error, result) {
+			client.hscan(coin + '{:shares:round}Current', 0, "match", a+"*", "count", 1000, function(error, result) {
                 if (error) {
                     pcb(error);
                     return;
@@ -391,10 +391,10 @@ var STATS = module.exports = function(logger, portalConfig, poolConfigs){
                 ['scard', ':blocksKicked'],
 				['smembers', ':blocksPending'],
 				['smembers', ':blocksConfirmed'],
-				['hgetall', ':shares:roundCurrent'],
+				['hgetall', '{:shares:round}Current'],
                 ['hgetall', ':blocksPendingConfirms'],
                 ['zrange', ':payments', -100, -1],
-                ['hgetall', ':shares:timesCurrent'],
+                ['hgetall', '{:shares:times}Current'],
                 ['zrangebyscore',':payedBills','-inf','+inf']
             ];
 

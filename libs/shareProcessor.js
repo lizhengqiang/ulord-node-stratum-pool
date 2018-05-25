@@ -72,7 +72,7 @@ module.exports = function(logger, poolConfig){
     this.handleShare = function(isValidShare, isValidBlock, shareData) {
 
         if (isValidShare) {
-            redisCommands.push(['hincrbyfloat', coin + ':shares:roundCurrent', shareData.worker, shareData.difficulty]);
+            redisCommands.push(['hincrbyfloat', coin + '{{:shares:round}}Current', shareData.worker, shareData.difficulty]);
             redisCommands.push(['hincrby', coin + ':stats', 'validShares', 1]);
         } else {
             redisCommands.push(['hincrby', coin + ':stats', 'invalidShares', 1]);
@@ -86,8 +86,8 @@ module.exports = function(logger, poolConfig){
         redisCommands.push(['zadd', coin + ':hashrate', dateNow / 1000 | 0, hashrateData.join(':')]);
 
         if (isValidBlock){
-            redisCommands.push(['rename', coin + ':shares:roundCurrent', coin + ':shares:round' + shareData.height]);
-            redisCommands.push(['rename', coin + ':shares:timesCurrent', coin + ':shares:times' + shareData.height]);
+            redisCommands.push(['rename', coin + '{{:shares:round}}Current', coin + '{{:shares:round}}' + shareData.height]);
+            redisCommands.push(['rename', coin + '{{:shares:times}}Current', coin + '{{:shares:times}}' + shareData.height]);
             redisCommands.push(['sadd', coin + ':blocksPending', [shareData.blockHash, shareData.txHash, shareData.height, shareData.worker, dateNow].join(':')]);
             redisCommands.push(['hincrby', coin + ':stats', 'validBlocks', 1]);
             lastRedisSync = 0; // in order to submit data to redis

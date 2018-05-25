@@ -794,7 +794,7 @@ function SetupForPool(logger, poolOptions, setupFinished){
             function(workers, rounds, addressAccount, callback){
                 // pplnt times lookup
                 var timeLookups = rounds.map(function(r){
-                    return ['hgetall', coin + ':shares:times' + r.height]
+                    return ['hgetall', coin + '{:shares:times}' + r.height]
                 });
                 startRedisTimer();
                 redisClient.multi(timeLookups).exec(function(error, allWorkerTimes){
@@ -805,7 +805,7 @@ function SetupForPool(logger, poolOptions, setupFinished){
                     }
                     // shares lookup
                     var shareLookups = rounds.map(function(r){
-                        return ['hgetall', coin + ':shares:round' + r.height];
+                        return ['hgetall', coin + '{:shares:round}' + r.height];
                     });
                     startRedisTimer();
                     redisClient.multi(shareLookups).exec(function(error, allWorkerShares){
@@ -1286,7 +1286,7 @@ function SetupForPool(logger, poolOptions, setupFinished){
                     if (workerShares != null) {
                         logger.warning(logSystem, logComponent, 'Moving shares from orphaned block '+r.height+' to current round.');
                         Object.keys(workerShares).forEach(function(worker){
-                            orphanMergeCommands.push(['hincrby', coin + ':shares:roundCurrent', worker, workerShares[worker]]);
+                            orphanMergeCommands.push(['hincrby', coin + '{:shares:round}Current', worker, workerShares[worker]]);
                         });
                     }
                 };
@@ -1299,8 +1299,8 @@ function SetupForPool(logger, poolOptions, setupFinished){
                             movePendingCommands.push(['smove', coin + ':blocksPending', coin + ':blocksKicked', r.serialized]);
                             if (r.canDeleteShares){
                                 moveSharesToCurrent(r);
-                                roundsToDelete.push(coin + ':shares:round' + r.height);
-                                roundsToDelete.push(coin + ':shares:times' + r.height);
+                                roundsToDelete.push(coin + '{:shares:round}' + r.height);
+                                roundsToDelete.push(coin + '{:shares:times}' + r.height);
                             }
                             return;
                         case 'immature':
@@ -1309,8 +1309,8 @@ function SetupForPool(logger, poolOptions, setupFinished){
                         case 'generate':
                             confirmsToDelete.push(['hdel', coin + ':blocksPendingConfirms', r.blockHash]);
                             movePendingCommands.push(['smove', coin + ':blocksPending', coin + ':blocksConfirmed', r.serialized]);
-                            roundsToDelete.push(coin + ':shares:round' + r.height);
-                            roundsToDelete.push(coin + ':shares:times' + r.height);
+                            roundsToDelete.push(coin + '{:shares:round}' + r.height);
+                            roundsToDelete.push(coin + '{:shares:times}' + r.height);
                             return;
                     }
                 });
