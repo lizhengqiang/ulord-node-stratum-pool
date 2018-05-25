@@ -274,7 +274,7 @@ var spawnPoolWorkers = function () {
                             var nxLastShareTime = rs;
                             setTimeout(function () {
                                 connection.hsetnx(msg.coin + ':LockPPLNT:current', workerAddress + '.' + nxLastShareTime, 0, function (err, rs) {
-                                    logger.debug('PPLNT', msg.coin, 'Thread ' + msg.thread, rs + ';' + JSON.stringify(err));
+                                    console.log('PPLNT', msg.coin, 'Thread ' + msg.thread, rs + ';' + JSON.stringify(err));
                                         
                                     if (err) {
                                         logger.debug('PPLNT', msg.coin, 'Thread ' + msg.thread, 'Error with time share processor call to redis ' + JSON.stringify(err));
