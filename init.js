@@ -265,62 +265,59 @@ var spawnPoolWorkers = function(){
                     // pplnt time share tracking of workers
                     if (msg.isValidShare && !msg.isValidBlock) {
                         var now = Date.now();
-                        var lastShareTime = now;
                         var lastStartTime = now;
                         var workerAddress = msg.data.worker.split('.')[0];
-                        
-                        pileUp += 1;
-                        
-                        // if needed, initialize PPLNT objects for coin
-                        if (!_lastShareTimes[msg.coin]) {
-                            _lastShareTimes[msg.coin] = {};
-                        }
-                        if (!_lastStartTimes[msg.coin]) {
-                            _lastStartTimes[msg.coin] = {};
-                        }
-                        
-                        // did they just join in this round?
-                        if (!_lastShareTimes[msg.coin][workerAddress] || !_lastStartTimes[msg.coin][workerAddress]) {
-                            _lastShareTimes[msg.coin][workerAddress] = now;
-                            _lastStartTimes[msg.coin][workerAddress] = now;
-                            logger.debug('PPLNT', msg.coin, 'Thread '+msg.thread, workerAddress+' joined.');
-                        }
-                        // grab last times from memory objects
-                        if (_lastShareTimes[msg.coin][workerAddress] != null && _lastShareTimes[msg.coin][workerAddress] > 0) {
-                            lastShareTime = _lastShareTimes[msg.coin][workerAddress];
-                            lastStartTime = _lastStartTimes[msg.coin][workerAddress];
-                        }
-                        
-                        // if its been less than 15 minutes since last share was submitted
-                        var timeChangeSec = roundTo(Math.max(now - lastShareTime, 0) / 1000, 4);
-                        //var timeChangeTotal = roundTo(Math.max(now - lastStartTime, 0) / 1000, 4);
-                        if (timeChangeSec < 900) {
-                        // loyal miner keeps mining :)
-                        redisCommands.push(['hincrbyfloat', msg.coin + ':shares:timesCurrent', workerAddress, timeChangeSec]);
-                        //logger.debug('PPLNT', msg.coin, 'Thread '+msg.thread, workerAddress+':{totalTimeSec:'+timeChangeTotal+', timeChangeSec:'+timeChangeSec+'}');
-                        
-                        if(Date.now() - lastShareSubmitTime >= 1000) {
-                        lastShareSubmitTime = Date.now();
-                        var operationExecutionStart = Date.now();
-                        var executedOperations = redisCommands.length;
-                        pileUp -= executedOperations;
-                        connection.multi(redisCommands).exec(function(err, replies){
-                                                             console.log("Execution time: " + (Date.now() - operationExecutionStart).toString() + " PileUp: " + pileUp.toString() + " Executed operations: " + executedOperations.toString());
-                                                             if (err)
-                                                             logger.error('PPLNT', msg.coin, 'Thread '+msg.thread, 'Error with time share processor call to redis ' + JSON.stringify(err));
-                                                             });
-                      redisCommands = [];
-                        }
-                        
-                       
-                        } else {
-                            // they just re-joined the pool
-                            _lastStartTimes[workerAddress] = now;
-                            logger.debug('PPLNT', msg.coin, 'Thread '+msg.thread, workerAddress+' re-joined.');
-                        }
-                        
-                        // track last time share
-                        _lastShareTimes[msg.coin][workerAddress] = now;
+                        connection.hget(msg.coin + ':lastTime:current', workerAddress, function (err, rs) {
+                            if (err)
+                                logger.error('PPLNT', msg.coin, 'Thread ' + msg.thread, 'Error with time share processor call to redis ' + JSON.stringify(err));
+
+                            var nxLastShareTime = rs;
+
+                            connection.hsetnx(msg.coin + ':LockPPLNT:current', workerAddress + '.' + nxLastShareTime, 0, function (err, rs) {
+                                connection.hset(msg.coin + ':lastTime:current', workerAddress, now)
+                                pileUp += 1;
+
+                                // if needed, initialize PPLNT objects for coin
+                                if (!_lastStartTimes[msg.coin]) {
+                                    _lastStartTimes[msg.coin] = {};
+                                }
+                                // did they just join in this round?
+                                if (!_lastStartTimes[msg.coin][workerAddress]) {
+                                    _lastStartTimes[msg.coin][workerAddress] = now;
+                                    logger.debug('PPLNT', msg.coin, 'Thread ' + msg.thread, workerAddress + ' joined.');
+                                }
+
+                                // if its been less than 15 minutes since last share was submitted
+                                var timeChangeSec = roundTo(Math.max(now - nxLastShareTime, 0) / 1000, 4);
+                                //var timeChangeTotal = roundTo(Math.max(now - lastStartTime, 0) / 1000, 4);
+                                if (timeChangeSec < 900) {
+
+                                    // loyal miner keeps mining :)
+                                    redisCommands.push(['hincrbyfloat', msg.coin + ':shares:timesCurrent', workerAddress, timeChangeSec]);
+
+                                    //logger.debug('PPLNT', msg.coin, 'Thread '+msg.thread, workerAddress+':{totalTimeSec:'+timeChangeTotal+', timeChangeSec:'+timeChangeSec+'}');
+
+                                    if (Date.now() - lastShareSubmitTime >= 1000) {
+                                        lastShareSubmitTime = Date.now();
+                                        var operationExecutionStart = Date.now();
+                                        var executedOperations = redisCommands.length;
+                                        pileUp -= executedOperations;
+                                        connection.multi(redisCommands).exec(function (err, replies) {
+                                            console.log("Execution time: " + (Date.now() - operationExecutionStart).toString() + " PileUp: " + pileUp.toString() + " Executed operations: " + executedOperations.toString());
+                                            if (err)
+                                                logger.error('PPLNT', msg.coin, 'Thread ' + msg.thread, 'Error with time share processor call to redis ' + JSON.stringify(err));
+                                        });
+                                        redisCommands = [];
+                                    }
+                                } else {
+                                    // they just re-joined the pool
+                                    _lastStartTimes[workerAddress] = now;
+                                    logger.debug('PPLNT', msg.coin, 'Thread ' + msg.thread, workerAddress + ' re-joined.');
+                                }
+
+                            })
+                        })
+
                     }
                     if (msg.isValidBlock) {
                         // reset pplnt share times for next round
@@ -500,17 +497,7 @@ var startWebsite = function(){
         setTimeout(function(){
             startWebsite(portalConfig, poolConfigs);
         }, 2000);
-    }).on("message",function(msg){
-		switch(msg.type){
-			case 'BLACKCALC':
-			Object.keys(cluster.workers).forEach(function(id) {
-                if (cluster.workers[id].type === 'pool'){
-                    cluster.workers[id].send({type: 'BLACKCALC', miner:msg.miner});
-                  }
-            });
-			break;
-		}
-	});
+    });
 };
 
 
