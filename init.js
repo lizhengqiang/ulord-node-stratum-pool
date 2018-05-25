@@ -271,7 +271,7 @@ var spawnPoolWorkers = function () {
                             if (err)
                                 logger.error('PPLNT', msg.coin, 'Thread ' + msg.thread, 'Error with time share processor call to redis ' + JSON.stringify(err));
 
-                            var nxLastShareTime = rs;
+                            var nxLastShareTime = rs || 0;
 
                             // Hold a 900s lock to prevent reADD shares time period
                             connection.hsetnx(msg.coin + ':CurrentLockPPLNT', workerAddress + '.' + nxLastShareTime, 0, 900, function (err, rs) {
