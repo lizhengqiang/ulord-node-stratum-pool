@@ -88,7 +88,7 @@ module.exports = function(logger, poolConfig){
         if (isValidBlock){
             redisCommands.push(['rename', coin + '{:shares:round}Current', coin + '{:shares:round}' + shareData.height]);
             redisCommands.push(['rename', coin + '{:shares:times}Current', coin + '{:shares:times}' + shareData.height]);
-            redisCommands.push(['sadd', coin + ':blocksPending', [shareData.blockHash, shareData.txHash, shareData.height, shareData.worker, dateNow].join(':')]);
+            redisCommands.push(['sadd', coin + '{:blocks}Pending', [shareData.blockHash, shareData.txHash, shareData.height, shareData.worker, dateNow].join(':')]);
             redisCommands.push(['hincrby', coin + ':stats', 'validBlocks', 1]);
             lastRedisSync = 0; // in order to submit data to redis
         }
